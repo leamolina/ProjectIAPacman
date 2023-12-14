@@ -1,6 +1,7 @@
 package logic;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Random;
 import java.util.TreeSet;
 
@@ -99,6 +100,25 @@ class Result{
 	}
 }
 
+class BeliefStateSet{
+	HashMap<String, Double> set;
+
+	public BeliefStateSet() {
+		this.set = new HashMap<String,Double>();
+	}
+
+	public void add(BeliefState beliefState, double value) {
+		this.set.put(beliefState.toString(),value);
+	}
+
+	public Double getValue(BeliefState beliefState) {
+		return this.set.get(beliefState.toString());
+	}
+
+	public int size() {
+		return this.set.size();
+	}
+}
 
 /**
  * class implement the AI to choose the next move of the Pacman
@@ -109,7 +129,11 @@ public class AI{
 	 * @param beliefState the current belief-state of the agent
 	 * @return a string describing the next action (among PacManLauncher.UP/DOWN/LEFT/RIGHT)
 	 */
+
+	private static BeliefStateSet transpositionTable = new BeliefStateSet();
+
 	public static String findNextMove(BeliefState beliefState) {
+		System.out.println("La table de transposition est : " + transpositionTable.set.size());
 		int deepth = 3;
 		ArrayList<String> bestMoves = new ArrayList<>();
 		Plans plan = beliefState.extendsBeliefState();
@@ -143,33 +167,47 @@ public class AI{
 
 	private static double getPotentialScore(Result result, int deepth) {
 		//Si on a terminé le jeu (qu'on a atteint un état final)
-		if(isFinalNextMap(result)){
-			return 1000000+1;
+		/*if(isFinalNextMap(result)){
+			return 1000000;
 		}
-		/*else if(isFinalGameOver(result)){
-			return -100000;
+		else if(isFinalGameOver(result)){
+			return -1000000;
 		}*/
 		//Si on a terminé de parcourir
-		else if(deepth==0){
+		if(deepth==0){
 			double average=0;
 			for(BeliefState beliefState: result.getBeliefStates()){
-				average+=getHeuristic(beliefState);
+				Double heuristique;
+				if(transpositionTable.set.containsKey(beliefState.toString())){
+					heuristique = transpositionTable.getValue(beliefState);
+				}
+				else {
+					heuristique = getHeuristic(beliefState);
+					transpositionTable.set.put(beliefState.toString(),heuristique);
+				}
+				average+=heuristique;
 			}
 			return average/result.getBeliefStates().size();
 		}
 		else{
 			double sumScore = 0;
 			for(BeliefState beliefState: result.getBeliefStates()){
-				Plans plan = beliefState.extendsBeliefState();
-				double scoreMax = Double.NEGATIVE_INFINITY;
-				for(int i=0; i<plan.size(); i++) {
-					Result res = plan.getResult(i);
-					double score = getPotentialScore(res, deepth-1);
-					if(score>scoreMax){
-						scoreMax = score;
-					}
+				if(transpositionTable.set.containsKey(beliefState.toString())){
+					sumScore = transpositionTable.getValue(beliefState);
 				}
-				sumScore+=scoreMax;
+				else {
+					Plans plan = beliefState.extendsBeliefState();
+
+					double scoreMax = Double.NEGATIVE_INFINITY;
+					for (int i = 0; i < plan.size(); i++) {
+						Result res = plan.getResult(i);
+						double score = getPotentialScore(res, deepth - 1);
+						if (score > scoreMax) {
+							scoreMax = score;
+						}
+					}
+					sumScore += scoreMax;
+				}
 			}
 			double averageScore = sumScore/result.getBeliefStates().size();
 			return averageScore;
