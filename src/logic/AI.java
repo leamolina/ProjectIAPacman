@@ -129,6 +129,39 @@ public class AI{
 	 * @return a string describing the next action (among PacManLauncher.UP/DOWN/LEFT/RIGHT)
 	 */
 	private static BeliefStateSet transpositionTable = new BeliefStateSet();
+	private static ArrayList<String> moves = new ArrayList<>();
+	private static String bestMove;
+
+	public static String findNextMove(BeliefState beliefState){
+		
+		return AI.bestMove;
+	}
+
+
+	public static double orSearch(BeliefState beliefState, int deepth) {
+		if (beliefState.getNbrOfGommes() == 0) {
+			return 10000; //On en renvoie un au hasard vu que le jeu est terminé
+		}
+		if (transpositionTable.set.containsKey(beliefState.toString())) {
+			return transpositionTable.getValue(beliefState);
+		}
+		Plans plan = beliefState.extendsBeliefState();
+		double maxScore = Double.NEGATIVE_INFINITY;
+		for (int i = 0; i < plan.size(); i++) {
+			Result result = plan.getResult(i);
+			double heuristique = andSearch(result, deepth-1);
+			if (heuristique>maxScore){
+				maxScore = heuristique;
+			}
+		}
+		return maxScore;
+	}
+
+	private static double andSearch(BeliefState beliefState, int i) {
+		Plans plan = beliefState.extendsBeliefState();
+		for(Result result : plan.getResult())
+	}
+
 
 	public static String findNextMove(BeliefState beliefState) {
 		System.out.println("La table de transposition est : " + transpositionTable.set.size());
@@ -145,7 +178,6 @@ public class AI{
 			}
 		}
 		return bestMove;
-
 	}
 
 	/*public static String findNextMoveBis(BeliefState beliefState) {
@@ -186,20 +218,22 @@ public class AI{
 		if(isFinalNextMap(result)){
 			return 10000000;
 		}
-		else if(isFinalGameOver(result)){
-			return -1000000000;
-		}
+		/*else if(isFinalGameOver(result)){
+			return 0;
+		}*/
 		//Si on a terminé de parcourir
 		if(deepth==0){
 			double average=0;
 			for(BeliefState beliefState: result.getBeliefStates()){
 				Double heuristique;
 				if(transpositionTable.set.containsKey(beliefState.toString())){
+					System.out.println("Je suis la");
 					heuristique = transpositionTable.getValue(beliefState);
 				}
 				else {
 					heuristique = getHeuristic(beliefState);
 					transpositionTable.set.put(beliefState.toString(),heuristique);
+					System.out.println("On a put");
 				}
 				average+=heuristique;
 			}
@@ -209,6 +243,7 @@ public class AI{
 			double sumScore = 0;
 			for(BeliefState beliefState: result.getBeliefStates()){
 				if(transpositionTable.set.containsKey(beliefState.toString())){
+					System.out.println("Je suis ici");
 					sumScore = transpositionTable.getValue(beliefState);
 				}
 				else {
@@ -261,7 +296,6 @@ public class AI{
 
 	private static double getHeuristic(BeliefState beliefState) {
 		if(beliefState.getLife()==0){return 0;}
-
 
 		double bonus = 0;
 		int lignePacman = beliefState.getPacmanPosition().getRow();
