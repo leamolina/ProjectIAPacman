@@ -127,9 +127,9 @@ public class AI{
 	/**
 	 * function that compute the next action to do (among UP, DOWN, LEFT, RIGHT)
 	 * @param beliefState the current belief-state of the agent
+	 * @param deepth the deepth of the search (size of the largest sequence of action checked)
 	 * @return a string describing the next action (among PacManLauncher.UP/DOWN/LEFT/RIGHT)
 	 */
-
 	private static BeliefStateSet transpositionTable = new BeliefStateSet();
 
 	public static String findNextMove(BeliefState beliefState) {
@@ -163,16 +163,16 @@ public class AI{
 		else{
 			//Pour la dernière itération (avant qu'il se fasse manger, y'a aucun bon score donc listBestMove sera vide)
 			return PacManLauncher.LEFT;
-		}	}
+		}  }
 
 	private static double getPotentialScore(Result result, int deepth) {
 		//Si on a terminé le jeu (qu'on a atteint un état final)
-		/*if(isFinalNextMap(result)){
-			return 1000000;
+		if(isFinalNextMap(result)){
+			return 10000000;
 		}
 		else if(isFinalGameOver(result)){
-			return -1000000;
-		}*/
+			return -1000000000;
+		}
 		//Si on a terminé de parcourir
 		if(deepth==0){
 			double average=0;
