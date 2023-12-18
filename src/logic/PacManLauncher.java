@@ -59,7 +59,6 @@ public class PacManLauncher {
 
 	/**
 	 * change la map en prenant le niveau passe en parametre
-	 * @param int lvl le niveau souhaité
 	 */
 	public void upLvl (int lvl) {
 		this.maps = new data.Map(lvl, this);

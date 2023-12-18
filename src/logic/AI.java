@@ -1,9 +1,6 @@
 package logic;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Random;
-import java.util.TreeSet;
+import java.util.*;
 
 import view.Gomme;
 
@@ -101,10 +98,11 @@ class Result{
 }
 
 class BeliefStateSet{
-	HashMap<String, Double> set;
+
+	TreeMap<String, Double> set;
 
 	public BeliefStateSet() {
-		this.set = new HashMap<String,Double>();
+		this.set = new TreeMap<String,Double>();
 	}
 
 	public void add(BeliefState beliefState, double value) {
@@ -135,6 +133,24 @@ public class AI{
 	public static String findNextMove(BeliefState beliefState) {
 		System.out.println("La table de transposition est : " + transpositionTable.set.size());
 		int deepth = 3;
+		Plans plan = beliefState.extendsBeliefState();
+		String bestMove = PacManLauncher.LEFT;
+		double maxPotentialScore = Double.NEGATIVE_INFINITY;
+		for (int i = 0; i < plan.size(); i++) {
+			Result result = plan.getResult(i);
+			double potentialScore = getPotentialScore(result, deepth);
+			if (potentialScore > maxPotentialScore) {
+				maxPotentialScore = potentialScore;
+				bestMove = plan.getAction(i).get(0);
+			}
+		}
+		return bestMove;
+
+	}
+
+	/*public static String findNextMoveBis(BeliefState beliefState) {
+		System.out.println("La table de transposition est : " + transpositionTable.set.size());
+		int deepth = 3;
 		ArrayList<String> bestMoves = new ArrayList<>();
 		Plans plan = beliefState.extendsBeliefState();
 		double maxPotentialScore = Double.NEGATIVE_INFINITY;
@@ -163,7 +179,7 @@ public class AI{
 		else{
 			//Pour la dernière itération (avant qu'il se fasse manger, y'a aucun bon score donc listBestMove sera vide)
 			return PacManLauncher.LEFT;
-		}  }
+		}  }*/
 
 	private static double getPotentialScore(Result result, int deepth) {
 		//Si on a terminé le jeu (qu'on a atteint un état final)
