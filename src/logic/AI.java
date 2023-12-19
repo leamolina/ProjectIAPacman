@@ -131,14 +131,16 @@ public class AI{
 	private static HashMap<Double, String> moves = new HashMap<>();
 	private static HashMap<Double, List<String>> movesBis = new HashMap<>();
 	private static String bestMove;
+	private final static int deepthMax = 4;
 	public static String findNextMove(BeliefState beliefState){
 		transpositionTable = new TreeMap<>();
-		andSearchBis(beliefState,3);
-
+		movesBis.clear();
+		andSearchBis(beliefState,deepthMax);
 		System.out.println("Le move qu'on a FINALEMENT choisi est " + AI.bestMove);
 		return AI.bestMove;
-
 	}
+
+
 	public static double orSearch(Result result, int deepth) { //moyenne
 		if(deepth == 0){
 			double somme = 0;
@@ -155,7 +157,7 @@ public class AI{
 
 				}
 
-				somme += score;
+				somme += score*beliefState.getNbrOfGhost();
 
 			}
 			return somme/result.getBeliefStates().size();
@@ -182,95 +184,107 @@ public class AI{
 		}
 
 	}
-	private static double andSearch(BeliefState beliefState, int deepth) { //max
 
+	public static double orSearchBis(Result result, int deepth) { //moyenne
+		if(deepth == 0){
+			double somme = 0;
+			double score = 0;
+			for(BeliefState beliefState : result.getBeliefStates()){
+				if(transpositionTable.containsKey(beliefState)){
+					score = transpositionTable.get(beliefState);
+				} else{
+					score = getHeuristic(beliefState);
+					transpositionTable.put(beliefState, score);
+				}
+				int nb_ghost = 1;
+				for(int j=0; j<2; j++){
+					nb_ghost *= beliefState.getGhostPositions(j).size();
+				}
+				score += score*nb_ghost;
+				somme += nb_ghost;
+			}
+			return score/somme;
+		} else{
+			double somme = 0;
+			double score = 0;
+			for(BeliefState beliefState : result.getBeliefStates()){
+				if(transpositionTable.containsKey(beliefState)){
+					score = transpositionTable.get(beliefState);
+				} else{
+					score = andSearchBis(beliefState, deepth);
+				}
+				int nb_ghost = 1;
+				for(int j=0; j<2; j++){
+					nb_ghost *= beliefState.getGhostPositions(j).size();
+				}
+				score += score*nb_ghost;
+				somme += nb_ghost;
+			}
+			return score/somme;
+		}
+	}
+	private static double andSearch(BeliefState beliefState, int deepth) { //max
 		Plans plan = beliefState.extendsBeliefState();
 		double scoreMax = -1;
 		for (int i = 0; i < plan.size(); i++) {
-
 			Result result = plan.getResult(i);
 			double score = orSearch(result, deepth-1);
-
-//
-
 			String move = plan.getAction(i).get(0);
-
-//
 			moves.put(score, move);
-			if(deepth == 3){
-
-				System.out.println("on a l action " + move + " et son score est " + score);
-
+			if(deepth == deepthMax){
+//System.out.println("on a l action " + move + " et son score est " + score);
 			}
 			if(scoreMax < score){
-
 				scoreMax = score;
-
 			}
-
 		}
-
-		System.out.println("Le move associée au scoreMax est " + moves.get(scoreMax));
+//System.out.println("Le move associée au scoreMax est " + moves.get(scoreMax));
 		bestMove = moves.get(scoreMax);
-		if(deepth == 3){
-
-			System.out.println("On a choisi l action " + bestMove + " dont le score est : " + scoreMax);
-
+		if(deepth == deepthMax){
+//System.out.println("On a choisi l action " + bestMove + " dont le score est : " + scoreMax);
 		}
 		return scoreMax;
-
 	}
 	private static double andSearchBis(BeliefState beliefState, int deepth) { //max
-
+//Faire en sorte que quoiqu'il il fuie les fantomes
+		if(beliefState.getLife()==0){return -1;}
 		Plans plan = beliefState.extendsBeliefState();
 		double scoreMax = -1;
 		for (int i = 0; i < plan.size(); i++) {
-
 			Result result = plan.getResult(i);
-			double score = orSearch(result, deepth-1);
-
+			double score = orSearchBis(result, deepth-1);
+//Pour faire Sol2, ici ajouter une boucle for pour plan.getAction(i).get(j)
 			String move = plan.getAction(i).get(0);
-			if(movesBis.containsKey(score) && deepth == 3){
+			if(movesBis.containsKey(score) && deepth == deepthMax){
 				movesBis.get(score).add(move);
-
 			}
-			else if(deepth == 3){
-
+			else if(deepth == deepthMax){
 				List<String> movesList = new ArrayList<>();
-
 				movesList.add(move);
 				movesBis.put(score, movesList);
-
 			}
-			if(deepth == 3){
-
+			if(deepth == deepthMax){
 				System.out.println("on a l action " + move + " et son score est " + score);
-
 			}
 			if(scoreMax < score){
-
 				scoreMax = score;
-
 			}
-
 		}
-
-		System.out.println("Le move associée au scoreMax est " + moves.get(scoreMax));
-		if(deepth == 3){
-
+		System.out.println("Le move associée au scoreMax est " + movesBis.get(scoreMax));
+		if(deepth == deepthMax){
 			List<String> bestMovesList = movesBis.get(scoreMax);
-
-			System.out.println("liste de choix : " + bestMovesList);
-
-			Random random = new Random();
-			int randomIndex = random.nextInt(bestMovesList.size());
-			bestMove = bestMovesList.get(randomIndex);
-
-			System.out.println("On a choisi l action " + bestMove + " dont le score est : " + scoreMax);
-
+			if(!bestMovesList.isEmpty()){
+				System.out.println("liste de choix : " + bestMovesList);
+				Random random = new Random();
+				int randomIndex = random.nextInt(bestMovesList.size());
+				bestMove = bestMovesList.get(randomIndex);
+				System.out.println("On a choisi l action " + bestMove + " dont le score est : " + scoreMax);
+			}
+			else{
+				bestMove = PacManLauncher.LEFT;
+			}
 		}
 		return scoreMax;
-
 	}
 
 /*public static String findNextMoveBis(BeliefState beliefState) {
