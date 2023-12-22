@@ -127,17 +127,37 @@ public class AI{
 	 * @param deepth the deepth of the search (size of the largest sequence of action checked)
 	 * @return a string describing the next action (among PacManLauncher.UP/DOWN/LEFT/RIGHT)
 	 */
-	private static TreeMap<BeliefState, Double> transpositionTable;
+	private static TreeMap<BeliefState, Double> transpositionTable = new TreeMap<>();
 	private static HashMap<Double, String> moves = new HashMap<>();
 	private static HashMap<Double, List<String>> movesBis = new HashMap<>();
+	private static ArrayList<Position> path = new ArrayList<>();
 	private static String bestMove;
 	private final static int deepthMax = 4;
 	public static String findNextMove(BeliefState beliefState){
-		transpositionTable = new TreeMap<>();
+		//transpositionTable = new TreeMap<>();
 		movesBis.clear();
 		andSearchBis(beliefState,deepthMax);
 		System.out.println("Le move qu'on a FINALEMENT choisi est " + AI.bestMove);
+		path.add(beliefState.getPacmanPosition());
+		System.out.println("Cycle ? " + containsCycle());
 		return AI.bestMove;
+	}
+
+
+	public static boolean containsCycle() {
+		ArrayList<Position> positionsVisitees = new ArrayList<>();
+		for (int i=0; i< path.size(); i++) {
+			Position p = path.get(i);
+			for(int j=0; j<positionsVisitees.size(); j++){
+				Position pVisitee = positionsVisitees.get(j);
+				if (p.getRow() == pVisitee.getRow() && p.getColumn() == pVisitee.getColumn() && i!=j){
+					return true;
+				}
+			}
+			positionsVisitees.add(p);
+		}
+
+		return false;  // Aucun doublon de position détecté
 	}
 
 
@@ -147,11 +167,9 @@ public class AI{
 			double score;
 			for(BeliefState beliefState : result.getBeliefStates()){
 				if(transpositionTable.containsKey(beliefState)){
-
-					score = transpositionTable.get(beliefState);
+					score = transpositionTable.get(beliefState); //Pas top les cycles
 
 				} else{
-
 					score = getHeuristic(beliefState);
 					transpositionTable.put(beliefState, score);
 
@@ -167,7 +185,6 @@ public class AI{
 			double score;
 			for(BeliefState beliefState : result.getBeliefStates()){
 				if(transpositionTable.containsKey(beliefState)){
-
 					score = transpositionTable.get(beliefState);
 
 				} else{
@@ -232,28 +249,36 @@ public class AI{
 			String move = plan.getAction(i).get(0);
 			moves.put(score, move);
 			if(deepth == deepthMax){
-//System.out.println("on a l action " + move + " et son score est " + score);
+				//System.out.println("on a l action " + move + " et son score est " + score);
 			}
 			if(scoreMax < score){
 				scoreMax = score;
 			}
 		}
-//System.out.println("Le move associée au scoreMax est " + moves.get(scoreMax));
+		//System.out.println("Le move associée au scoreMax est " + moves.get(scoreMax));
 		bestMove = moves.get(scoreMax);
 		if(deepth == deepthMax){
-//System.out.println("On a choisi l action " + bestMove + " dont le score est : " + scoreMax);
+			//System.out.println("On a choisi l action " + bestMove + " dont le score est : " + scoreMax);
 		}
 		return scoreMax;
 	}
 	private static double andSearchBis(BeliefState beliefState, int deepth) { //max
-//Faire en sorte que quoiqu'il il fuie les fantomes
-		if(beliefState.getLife()==0){return -1;}
+		//Faire en sorte que quoiqu'il il fuie les fantomes
+		//if(beliefState.getLife()==0){return -1;}
 		Plans plan = beliefState.extendsBeliefState();
 		double scoreMax = -1;
 		for (int i = 0; i < plan.size(); i++) {
 			Result result = plan.getResult(i);
-			double score = orSearchBis(result, deepth-1);
-//Pour faire Sol2, ici ajouter une boucle for pour plan.getAction(i).get(j)
+			double score;
+
+			//Lui interdire les murs
+			if(plan.getAction(i).size()>1){
+				score = -0.5;
+			}
+			else{
+				score = orSearch(result, deepth-1);
+			}
+
 			String move = plan.getAction(i).get(0);
 			if(movesBis.containsKey(score) && deepth == deepthMax){
 				movesBis.get(score).add(move);
@@ -266,11 +291,11 @@ public class AI{
 			if(deepth == deepthMax){
 				System.out.println("on a l action " + move + " et son score est " + score);
 			}
-			if(scoreMax < score){
+			if(scoreMax <= score){
 				scoreMax = score;
 			}
 		}
-		System.out.println("Le move associée au scoreMax est " + movesBis.get(scoreMax));
+		//System.out.println("Le move associée au scoreMax est " + movesBis.get(scoreMax));
 		if(deepth == deepthMax){
 			List<String> bestMovesList = movesBis.get(scoreMax);
 			if(!bestMovesList.isEmpty()){
