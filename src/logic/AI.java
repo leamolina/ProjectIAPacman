@@ -131,56 +131,49 @@ public class AI{
 	private static HashMap<Double, String> moves = new HashMap<>();
 	private static HashMap<Double, List<String>> movesBis = new HashMap<>();
 	private static ArrayList<Position> path = new ArrayList<>();
+	private static ArrayList<Integer> scores = new ArrayList<>();
 	private static String bestMove;
 	private final static int deepthMax = 4;
 	public static String findNextMove(BeliefState beliefState){
-		//transpositionTable = new TreeMap<>();
-		movesBis.clear();
-		andSearchBis(beliefState,deepthMax);
-		System.out.println("Le move qu'on a FINALEMENT choisi est " + AI.bestMove);
+		//S'il y a un changement de score, on vide la liste du chemin
+		if(scores.size()>0 && beliefState.getScore() != scores.get(scores.size()-1)){
+			scores.clear();
+			path.clear();
+		}
+		scores.add(beliefState.getScore());
 		path.add(beliefState.getPacmanPosition());
-		System.out.println("Cycle ? " + containsCycle());
+
+		//movesBis.clear();
+		moves.clear();
+		double bestScore = andSearch(beliefState,deepthMax);
+		System.out.println("Le move qu'on a FINALEMENT choisi est " + AI.bestMove + "car son score est " + bestScore);
+
+		//System.out.println("Cycle ? " + containsCycle(scores, path));
 		return AI.bestMove;
 	}
 
 
-	public static boolean containsCycle() {
-		ArrayList<Position> positionsVisitees = new ArrayList<>();
-		for (int i=0; i< path.size(); i++) {
+	public static boolean containsCycle(ArrayList<Integer> scores, ArrayList<Position> path, Position pos) {
+		int cpt =0;
+		//On commence à la fin car on sait que s'il y a un cycle, il est plus probable qu'il se trouve à la fin
+		for (int i=path.size()-1; i>=0 ;i--) {
 			Position p = path.get(i);
-			for(int j=0; j<positionsVisitees.size(); j++){
-				Position pVisitee = positionsVisitees.get(j);
-				if (p.getRow() == pVisitee.getRow() && p.getColumn() == pVisitee.getColumn() && i!=j){
-					return true;
+				if (p.getRow() == pos.getRow() && p.getColumn() == pos.getColumn()) {
+					cpt++;
+					if(cpt>=3){
+						System.out.println("Ya un CYCLE");
+						return true;
+					}
 				}
-			}
-			positionsVisitees.add(p);
 		}
 
-		return false;  // Aucun doublon de position détecté
+		return false;
 	}
 
 
-	public static double orSearch(Result result, int deepth) { //moyenne
+
+	public static double orSearch(Result result, int deepth) { //Moyenne
 		if(deepth == 0){
-			double somme = 0;
-			double score;
-			for(BeliefState beliefState : result.getBeliefStates()){
-				if(transpositionTable.containsKey(beliefState)){
-					score = transpositionTable.get(beliefState); //Pas top les cycles
-
-				} else{
-					score = getHeuristic(beliefState);
-					transpositionTable.put(beliefState, score);
-
-				}
-
-				somme += score*beliefState.getNbrOfGhost();
-
-			}
-			return somme/result.getBeliefStates().size();
-
-		} else{
 			double somme = 0;
 			double score;
 			for(BeliefState beliefState : result.getBeliefStates()){
@@ -188,13 +181,27 @@ public class AI{
 					score = transpositionTable.get(beliefState);
 
 				} else{
-
-					score = andSearchBis(beliefState, deepth);
+					score = getHeuristic(beliefState);
+					transpositionTable.put(beliefState, score);
 
 				}
 
 				somme += score;
+			}
+			return somme/result.getBeliefStates().size();
 
+		} else{
+			double somme = 0;
+			double score;
+			for(BeliefState beliefState : result.getBeliefStates()){
+				if(transpositionTable.containsKey(beliefState)){
+					score = transpositionTable.get(beliefState);
+
+				} else{
+					score = andSearch(beliefState, deepth);
+				}
+
+				somme += score;
 			}
 			return somme/result.getBeliefStates().size();
 
@@ -202,81 +209,45 @@ public class AI{
 
 	}
 
-	public static double orSearchBis(Result result, int deepth) { //moyenne
-		if(deepth == 0){
-			double somme = 0;
-			double score = 0;
-			for(BeliefState beliefState : result.getBeliefStates()){
-				if(transpositionTable.containsKey(beliefState)){
-					score = transpositionTable.get(beliefState);
-				} else{
-					score = getHeuristic(beliefState);
-					transpositionTable.put(beliefState, score);
-				}
-				int nb_ghost = 1;
-				for(int j=0; j<2; j++){
-					nb_ghost *= beliefState.getGhostPositions(j).size();
-				}
-				score += score*nb_ghost;
-				somme += nb_ghost;
-			}
-			return score/somme;
-		} else{
-			double somme = 0;
-			double score = 0;
-			for(BeliefState beliefState : result.getBeliefStates()){
-				if(transpositionTable.containsKey(beliefState)){
-					score = transpositionTable.get(beliefState);
-				} else{
-					score = andSearchBis(beliefState, deepth);
-				}
-				int nb_ghost = 1;
-				for(int j=0; j<2; j++){
-					nb_ghost *= beliefState.getGhostPositions(j).size();
-				}
-				score += score*nb_ghost;
-				somme += nb_ghost;
-			}
-			return score/somme;
-		}
-	}
-	private static double andSearch(BeliefState beliefState, int deepth) { //max
+
+
+	private static double andSearch(BeliefState beliefState, int deepth) { //Max
 		Plans plan = beliefState.extendsBeliefState();
 		double scoreMax = -1;
 		for (int i = 0; i < plan.size(); i++) {
 			Result result = plan.getResult(i);
 			double score = orSearch(result, deepth-1);
+			//Lui interdire les murs
+			if(plan.getAction(i).size()>1){
+				continue;
+			}
 			String move = plan.getAction(i).get(0);
 			moves.put(score, move);
 			if(deepth == deepthMax){
-				//System.out.println("on a l action " + move + " et son score est " + score);
+				System.out.println("on a l action " + move + " et son score est " + score);
 			}
 			if(scoreMax < score){
 				scoreMax = score;
 			}
 		}
-		//System.out.println("Le move associée au scoreMax est " + moves.get(scoreMax));
 		bestMove = moves.get(scoreMax);
 		if(deepth == deepthMax){
-			//System.out.println("On a choisi l action " + bestMove + " dont le score est : " + scoreMax);
+			System.out.println("Voici les choix qu'on an : " + moves);
 		}
 		return scoreMax;
 	}
-	private static double andSearchBis(BeliefState beliefState, int deepth) { //max
-		//Faire en sorte que quoiqu'il il fuie les fantomes
-		//if(beliefState.getLife()==0){return -1;}
+
+
+	private static double andSearchBis(BeliefState beliefState, int deepth) { //Max
 		Plans plan = beliefState.extendsBeliefState();
-		double scoreMax = -1;
+		double scoreMax = -2;
 		for (int i = 0; i < plan.size(); i++) {
 			Result result = plan.getResult(i);
-			double score;
+			double score = orSearch(result, deepth-1);
 
 			//Lui interdire les murs
 			if(plan.getAction(i).size()>1){
-				score = -0.5;
-			}
-			else{
-				score = orSearch(result, deepth-1);
+				continue;
 			}
 
 			String move = plan.getAction(i).get(0);
@@ -295,7 +266,6 @@ public class AI{
 				scoreMax = score;
 			}
 		}
-		//System.out.println("Le move associée au scoreMax est " + movesBis.get(scoreMax));
 		if(deepth == deepthMax){
 			List<String> bestMovesList = movesBis.get(scoreMax);
 			if(!bestMovesList.isEmpty()){
@@ -309,270 +279,43 @@ public class AI{
 				bestMove = PacManLauncher.LEFT;
 			}
 		}
+
 		return scoreMax;
 	}
 
-/*public static String findNextMoveBis(BeliefState beliefState) {
-
-System.out.println("La table de transposition est : " + transpositionTable.set.size());
-
-int deepth = 3;
-
-ArrayList<String> bestMoves = new ArrayList<>();
-
-Plans plan = beliefState.extendsBeliefState();
-
-double maxPotentialScore = Double.NEGATIVE_INFINITY;
-
-for(int i=0; i<plan.size(); i++) {
-
-Result result = plan.getResult(i);
-
-double potentialScore = getPotentialScore(result,deepth);
-
-if(potentialScore>maxPotentialScore){
-
-maxPotentialScore = potentialScore;
-
-bestMoves.clear();
-
-for(int j=0; j<plan.getAction(i).size(); j++){
-
-bestMoves.add(plan.getAction(i).get(j));
-
-}
-
-}
-
-else if(potentialScore==maxPotentialScore){
-
-for(int j=0; j<plan.getAction(i).size(); j++){
-
-bestMoves.add(plan.getAction(i).get(j));
-
-}
-
-}
-
-}
-
-//On choisit le max de toutes les moyennes choisies
-
-if(bestMoves.size()>0){
-
-Random random = new Random();
-
-int randomNumber = random.nextInt(bestMoves.size());
-
-return bestMoves.get(randomNumber);
-
-}
-
-else{
-
-//Pour la dernière itération (avant qu'il se fasse manger, y'a aucun bon score donc listBestMove sera vide)
-
-return PacManLauncher.LEFT;
-
-} }*/
-
-	/*private static double getPotentialScore(Result result, int deepth) {
-
-    //Si on a terminé le jeu (qu'on a atteint un état final)
-
-    if(isFinalNextMap(result)){
-
-    return 10000000;
-
-    } else if(isFinalGameOver(result)){
-
-    return -1000000000;
-
-    }
-
-    //Si on a terminé de parcourir
-
-    if(deepth==0){
-
-    double average=0;
-
-    for(BeliefState beliefState: result.getBeliefStates()){
-
-    Double heuristique;
-
-    if(transpositionTable.set.containsKey(beliefState.toString())){
-
-    heuristique = transpositionTable.getValue(beliefState);
-
-    } else {
-
-    heuristique = getHeuristic(beliefState);
-
-    transpositionTable.set.put(beliefState.toString(),heuristique);
-
-    }
-
-    average+=heuristique;
-
-    }
-
-    return average/result.getBeliefStates().size();
-
-    } else{
-
-    double sumScore = 0;
-
-    for(BeliefState beliefState: result.getBeliefStates()){
-
-    if(transpositionTable.set.containsKey(beliefState.toString())){
-
-    sumScore = transpositionTable.getValue(beliefState);
-
-    } else {
-
-    Plans plan = beliefState.extendsBeliefState();
-
-    double scoreMax = Double.NEGATIVE_INFINITY;
-
-    for (int i = 0; i < plan.size(); i++) {
-
-    Result res = plan.getResult(i);
-
-    double score = getPotentialScore(res, deepth - 1);
-
-    if (score > scoreMax) {
-
-    scoreMax = score;
-
-    }
-
-    }
-
-    sumScore += scoreMax;
-
-    }
-
-    }
-
-    double averageScore = sumScore/result.getBeliefStates().size();
-
-    return averageScore;
-
-    }
-
-    }*/
-	private static boolean isFinalNextMap(Result result) {
-		for(BeliefState beliefState: result.getBeliefStates()){
-			if(beliefState.getNbrOfGommes()==0){
-				return true;
-
-			}
-
-		}
-		return false;
-
-	}
-	private static boolean isFinalGameOver(Result result) {
-		for(BeliefState beliefState: result.getBeliefStates()){
-			if(beliefState.getLife()==0){
-				return true;
-
-			}
-
-		}
-		return false;
-
-	}
-	private static boolean isFinal(Result result) {
-		for(BeliefState beliefState: result.getBeliefStates()){
-			if(beliefState.getLife()==0 || beliefState.getNbrOfGommes()==0){
-				return true;
-
-			}
-
-		}
-		return false;
-
-	}
-
 	private static double getHeuristic(BeliefState beliefState) {
+		int malus = 0;
 		if(beliefState.getLife()==0){
 			return 0;
-
+		}
+		else if(containsCycle(scores, path, beliefState.getPacmanPosition())){
+			malus+=1;
 		}
 		double bonus = 0;
 		int lignePacman = beliefState.getPacmanPosition().getRow();
 		int colonnePacman = beliefState.getPacmanPosition().getColumn();
 
-//char dirPacman = beliefState.getPacmanPosition().getDirection();
-
-//Le faire aller vers la gomme la plus proche
+		//Le faire aller vers la gomme la plus proche
 		double minDistanceMannhatanGommes = 100000;
-		for (int i=0; i<20 ; i++){ //nb de ligne
-			for(int j=0; j<19 ; j++) { //nb de colonnes
+		for (int i=0; i<25; i++){ //nb de ligne
+			for(int j=0; j<25; j++) { //nb de colonnes
 				if (beliefState.getMap(i, j) == '.') {
 					double distanceMannhatanGommes = Math.abs(lignePacman - i) + Math.abs(colonnePacman - j);
 					if(distanceMannhatanGommes < minDistanceMannhatanGommes){
-
 						minDistanceMannhatanGommes = distanceMannhatanGommes;
-
 					}
-
 				}
-
 			}
-
 		}
 		if(minDistanceMannhatanGommes!=0){
-
 			bonus = 1/minDistanceMannhatanGommes;
-
 		}
-		return beliefState.getScore() + bonus;
+
+		return beliefState.getScore() + bonus - malus;
 
 	}
 
 
-	//Cas où lignes ==
-	private static boolean isWallRowBetween(Position pGhost, BeliefState beliefState) {
-		int colonnePacman = beliefState.getPacmanPosition().getColumn();
-		int lignePacman = beliefState.getPacmanPosition().getRow();
-		int colonneGhost = pGhost.getColumn();
-		int ligneGhost = pGhost.getRow();
 
-//On va parcourir les colonnes x (pour la ligne y) et vérifier qu'il n'y a pas de mur qui sépare le pacman du ghost
-		int colonneStart = Math.min(colonnePacman, colonneGhost);
-		int colonneEnd = Math.max(colonnePacman, colonneGhost);
-		for (int colonne = colonneStart; colonne<colonneEnd; colonne++){
-			if(beliefState.getMap(lignePacman, colonne) == '#'){
-				return true;
-
-			}
-
-		}
-		return false;
-
-	}
-
-	//cas column ==
-	private static boolean isWallColBetween(Position pGhost, BeliefState beliefState) {
-		int colonnePacman = beliefState.getPacmanPosition().getColumn();
-		int lignePacman = beliefState.getPacmanPosition().getRow();
-		int colonneGhost = pGhost.getColumn();
-		int ligneGhost = pGhost.getRow();
-
-//On va parcourir les lignes y (pour la colonne x) et vérifier qu'il n'y a pas de mur qui sépare le pacman du ghost
-		int ligneStart = Math.min(lignePacman, ligneGhost);
-		int ligneEnd = Math.max(lignePacman, ligneGhost);
-		for (int ligne = ligneStart; ligne<ligneEnd; ligne++){
-			if(beliefState.getMap(ligne, colonnePacman) == '#'){
-				return true;
-
-			}
-
-		}
-		return false;
-
-	}
 
 }
