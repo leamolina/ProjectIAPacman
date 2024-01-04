@@ -101,34 +101,28 @@ class Result{
  * class implement the AI to choose the next move of the Pacman
  */
 public class AI{
+
+	private static TreeMap<BeliefState, Double> transpositionTable = new TreeMap<>(); //Une table de transposition qui va permettre de stocker les beliefState déjà rencontrés et leur score
+	private static HashMap<Double, String> moves = new HashMap<>(); //Une Map qui va stocker les différentes actions possibles à partir d'un beliefState ainsi que leur score associé
+	private static ArrayList<Position> path = new ArrayList<>(); //Une liste qui va stocker les différentes positions du pacman au cours du jeu
+	private static int currentScore=-1; //Le score actuel du pacman
+	private static String bestMove; //Le mouvement rapportant le meilleur score
+	private final static int deepthMax = 4; //Profondeur maximale de recherche
+
 	/**
 	 * function that compute the next action to do (among UP, DOWN, LEFT, RIGHT)
 	 * @param beliefState the current belief-state of the agent
-	 * @param deepth the deepth of the search (size of the largest sequence of action checked)
 	 * @return a string describing the next action (among PacManLauncher.UP/DOWN/LEFT/RIGHT)
-	 */
-	private static TreeMap<BeliefState, Double> transpositionTable = new TreeMap<>();
-	private static HashMap<Double, String> moves = new HashMap<>();
-	private static ArrayList<Position> path = new ArrayList<>();
-	private static ArrayList<Integer> scores = new ArrayList<>();
-	private static String bestMove;
-	private final static int deepthMax = 4;
-
-	/**
-	 * Cette méthode va appeler l'algorithme de recherche AndSearch afin d'estimer quel mouvement est le plus rentable pour le pacman
-	 * @param beliefState le beliefState atuel
-	 * @return la meilleure action possible en prenant en compte toutes les informations sur l'environnement
 	 */
 	public static String findNextMove(BeliefState beliefState){
 
 		//S'il y a un changement de score, on vide la liste du chemin
-		if(!scores.isEmpty() && beliefState.getScore() != scores.get(scores.size()-1)){
-			scores.clear();
+		if(currentScore!=-1 && beliefState.getScore() != currentScore){
 			path.clear();
 		}
 
-		//A chaque fois qu'on choisit un BeliefState, on ajoute son score et la position du pacman aux listes scores et path
-		scores.add(beliefState.getScore());
+		//À chaque fois qu'on choisit un BeliefState, on ajoute son score et la position du pacman aux listes scores et path
+		currentScore = beliefState.getScore();
 		path.add(beliefState.getPacmanPosition());
 
 		moves.clear();
@@ -140,23 +134,22 @@ public class AI{
 
 
 	/**
-	 *
-	 * @param result
-	 * @param deepth
-	 * @return
+	 * @param result le result dont on cherche le score
+	 * @param deepth la profondeur de la recherche
+	 * @return le score moyen de tous les beliefStates du result en argument
 	 */
-	public static double orSearch(Result result, int deepth) { //Moyenne
+	public static double orSearch(Result result, int deepth) {
         double somme = 0;
 
 		//Si la profondeur est égale à 0, on n'appelle plus andSearch, on fait désormais appel à l'heuristique pour estimer le score potentiel de chaque action
         if(deepth == 0){
             double score;
 			for(BeliefState beliefState : result.getBeliefStates()){
-				//Si le beliefState est déjà présent dans la table de transposition, on n'a pas besoin de faire appel à l'heuristique; on renvoie directement le score qui est stocké
+				//Si le beliefState est déjà présent dans la table de transposition, on n'a pas besoin de faire appel à l'heuristique ; on renvoie directement le score qui est stocké
 				if(transpositionTable.containsKey(beliefState)){
 					score = transpositionTable.get(beliefState);
 				}
-				//Sinon, on fait appel à l'heuristique, et on ajout le beliefState et son score associé à la table de transposition
+				//Sinon, on fait appel à l'heuristique, et on ajoute le beliefState et son score associé à la table de transposition
 				else{
 					score = getHeuristic(beliefState);
 					transpositionTable.put(beliefState, score);
@@ -187,10 +180,9 @@ public class AI{
 
 
 	/**
-	 *
 	 * @param beliefState le BeliefState à étendre et à explorer
 	 * @param deepth la profondeur de la recherche
-	 * @return le score maximum que parmis les scores résultants des 4 actions possiblrs
+	 * @return le score maximum parmi les scores résultants des 4 actions possibles
 	 */
 	private static double andSearch(BeliefState beliefState, int deepth) { //Max
 		Plans plan = beliefState.extendsBeliefState(); //On étend le beliefState
@@ -235,8 +227,8 @@ public class AI{
 
 		//Le faire aller vers la gomme la plus proche (celle dont la distance de Mannhatan est la plus petite)
 		double minDistanceMannhatanGommes = 100000;
-		for (int i=0; i<25; i++){ //Nombre de ligne
-			for(int j=0; j<25; j++) { //Nombtr de colonnes
+		for (int i=0; i<25; i++){ //Nombre de lignes
+			for(int j=0; j<25; j++) { //Nombre de colonnes
 				if (beliefState.getMap(i, j) == '.') {
 					double distanceMannhatanGommes = Math.abs(lignePacman - i) + Math.abs(colonnePacman - j);
 					if(distanceMannhatanGommes < minDistanceMannhatanGommes){
